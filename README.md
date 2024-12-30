@@ -1,5 +1,7 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+# GDREPS - E-commerce Store with Admin Panel
+
 ## Getting Started
 
 First, run the development server:
@@ -14,23 +16,150 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Current App Architecture
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+flowchart TD
+    %% Database Layer
+    subgraph Database
+        SQLite[SQLite Database]
+        subgraph Tables
+            Users[Users Table]
+            Products[Products Table]
+            Categories[Categories Table]
+            Brands[Brands Table]
+            Colors[Colors Table]
+            Sizes[Sizes Table]
+            Orders[Orders Table]
+            OrderItems[OrderItems Table]
+        end
+    end
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+    %% Client-Side Storage
+    subgraph ClientStorage
+        LocalStorage[Local Storage]
+        subgraph StoredData
+            CartData[Cart Data]
+            UserPrefs[User Preferences]
+        end
+    end
 
-## Learn More
+    %% Authentication
+    subgraph Auth
+        KindeAuth[Kinde Auth]
+        AuthMiddleware[Auth Middleware]
+    end
 
-To learn more about Next.js, take a look at the following resources:
+    %% Pages
+    subgraph Pages
+        Home[/Home/]
+        AdminPanel[/Admin Panel/]
+        Products[/Products/]
+        Categories[/Categories/]
+        Brands[/Brands/]
+        Cart[/Cart/]
+        Profile[/Profile/]
+        Checkout[/Checkout/]
+    end
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+    %% API Routes
+    subgraph APIRoutes
+        subgraph AdminAPI
+            direction TB
+            AdminProducts[/api/admin/products/]
+            AdminBrands[/api/admin/brands/]
+            AdminCategories[/api/admin/categories/]
+            AdminColors[/api/admin/colors/]
+            AdminSizes[/api/admin/sizes/]
+        end
+        subgraph PublicAPI
+            direction TB
+            ProductsAPI[/api/products/]
+            BrandsAPI[/api/brands/]
+            CategoriesAPI[/api/categories/]
+            UserAPI[/api/user/]
+            SyncAPI[/api/sync/]
+        end
+    end
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+    %% State Management
+    subgraph StateManagement
+        Zustand[Zustand Store]
+        ReactQuery[React Query]
+    end
 
-## Deploy on Vercel
+    %% Components
+    subgraph Components
+        UIComponents[UI Components]
+        AdminComponents[Admin Components]
+        ProductComponents[Product Components]
+        CartComponents[Cart Components]
+    end
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+    %% Relationships
+    KindeAuth --> AuthMiddleware
+    AuthMiddleware --> AdminPanel
+    AuthMiddleware --> Profile
+    AuthMiddleware --> Cart
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+    Pages --> APIRoutes
+    APIRoutes --> SQLite
+    
+    CartComponents --> LocalStorage
+    CartData --> Zustand
+    
+    Products --> ProductsAPI
+    Categories --> CategoriesAPI
+    Brands --> BrandsAPI
+    
+    AdminPanel --> AdminAPI
+    AdminAPI --> SQLite
+
+    Products --> ReactQuery
+    Categories --> ReactQuery
+    Brands --> ReactQuery
+
+    KindeAuth --> SyncAPI
+    SyncAPI --> Users
+
+classDef page fill:#f9f,stroke:#333,stroke-width:2px
+classDef db fill:#66f,stroke:#333,stroke-width:2px
+classDef api fill:#6f6,stroke:#333,stroke-width:2px
+classDef auth fill:#ff6,stroke:#333,stroke-width:2px
+classDef storage fill:#f66,stroke:#333,stroke-width:2px
+
+class Home,AdminPanel,Products,Categories,Brands,Cart,Profile,Checkout page
+class SQLite db
+class AdminProducts,AdminBrands,AdminCategories,AdminColors,AdminSizes,ProductsAPI,BrandsAPI,CategoriesAPI,UserAPI,SyncAPI api
+class KindeAuth,AuthMiddleware auth
+class LocalStorage,CartData,UserPrefs storage
+
+## Checkout
+
+sequenceDiagram
+    participant User
+    participant Cart
+    participant Checkout
+    participant StripeAPI
+    participant ServerAPI
+    participant Database
+
+    User->>Cart: Add Products
+    Cart->>Cart: Calculate Total
+    User->>Checkout: Click "Proceed to Checkout"
+    Checkout->>ServerAPI: Create Payment Intent
+    ServerAPI->>StripeAPI: Initialize Payment
+    StripeAPI-->>Checkout: Return Client Secret
+    Checkout->>StripeAPI: Submit Payment
+    
+    alt Payment Successful
+        StripeAPI-->>ServerAPI: Payment Success Webhook
+        ServerAPI->>Database: Create Order
+        ServerAPI-->>User: Redirect to Profile
+        User->>ServerAPI: Fetch Order History
+        ServerAPI-->>User: Display Orders in Table
+    else Payment Failed
+        StripeAPI-->>Checkout: Error Response
+        Checkout-->>User: Show Error Message
+    end
+
+### gdreps-store
