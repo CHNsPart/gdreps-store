@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @unique
+  email         String    @unique
+  firstName     String?
+  lastName      String?
+  profileImage  String?
+  phoneNumber     String?   
+  shippingAddress String?   
+  stripeCustomerId String?
+  orders        Order[]   
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Brand {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+
+model Size {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  type        String    
+  products    Product[]  @relation("ProductSizes")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Color {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  hex         String    
+  products    Product[]  @relation("ProductColors")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Product {
+  id            String    @id @default(cuid())
+  title         String
+  categoryId    String
+  category      Category  @relation(fields: [categoryId], references: [id])
+  brandId       String
+  brand         Brand     @relation(fields: [brandId], references: [id])
+  images        String    
+  sku           String    @unique
+  shippingCost  Float
+  price         Float
+  productDetails String?
+  sizes         Size[]    @relation("ProductSizes")
+  colors        Color[]   @relation("ProductColors")
+  inStock       Boolean   @default(true)
+  orderItems    OrderItem[] // Relation to order items
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Order {
+  id                   String      @id @default(cuid())
+  userId               String
+  user                 User        @relation(fields: [userId], references: [id])
+  items                OrderItem[]
+  total                Float
+
+  stripePaymentIntentId String?    @unique  // To prevent duplicate orders
+  stripeCustomerId      String?    // For recurring customers
+
+  paymentStatus         String     @default("pending") // pending, processing, paid, failed
+  shippingAddress       String     // Required for delivery
+  orderStatus           String     @default("pending") // pending, processing, shipped, delivered, cancelled
+  trackingNumber        String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  @@index([userId])
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  quantity    Int
+  price       Float    // Price at time of order
+  size        String   // Selected size
+  color       String   // Selected color
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([productId])
+}
